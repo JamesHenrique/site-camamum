@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, MessageCircle, MapPin, Bed, Bath, Move } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, MessageCircle, MapPin, Bed, Bath, Move, Maximize2 } from 'lucide-react';
 import { Property } from '../types';
 import { WHATSAPP_NUMBER } from '../constants';
 import Button from './Button';
+import { formatPrice } from '../lib/formatters';
 
 interface PropertyModalProps {
   property: Property;
@@ -11,6 +12,7 @@ interface PropertyModalProps {
 
 const PropertyModal: React.FC<PropertyModalProps> = ({ property, onClose }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [isImageZoomed, setIsImageZoomed] = useState(false);
 
   // Combine main image, gallery images, and videos into a single media array
   const mediaItems = [
@@ -28,20 +30,81 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ property, onClose }) => {
   };
 
   const handleContact = () => {
-    const message = encodeURIComponent(`Olá, gostei do imóvel "${property.title}" (ID: ${property.id}) e gostaria de mais informações.`);
+    const message = encodeURIComponent(`Olá, gostei do imóvel "${property.title}" e gostaria de mais informações.`);
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${message}`, '_blank');
   };
 
   const currentMedia = mediaItems[currentMediaIndex];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 
-        onClick={onClose}
-      ></div>
-      
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-fadeIn">
+    <>
+      {/* Fullscreen Image Zoom (Mobile) */}
+      {isImageZoomed && currentMedia.type === 'image' && (
+        <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center">
+          <button 
+            onClick={() => setIsImageZoomed(false)}
+            className="absolute top-4 right-4 z-10 p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors"
+          >
+            <X size={24} />
+          </button>
+          
+          <div className="w-full h-full overflow-auto p-4">
+            <img 
+              src={currentMedia.url} 
+              alt={`View ${currentMediaIndex + 1}`} 
+              className="w-full h-auto object-contain"
+              style={{ 
+                minHeight: '100%',
+                touchAction: 'pan-x pan-y pinch-zoom'
+              }}
+            />
+          </div>
+
+          {mediaItems.length > 1 && (
+            <>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrev();
+                }}
+                className="absolute left-2 p-1.5 bg-white/10 hover:bg-white/30 text-white rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNext();
+                }}
+                className="absolute right-2 p-1.5 bg-white/10 hover:bg-white/30 text-white rounded-full transition-colors"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1.5">
+                {mediaItems.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentMediaIndex(idx)}
+                    className={`w-1.5 h-1.5 rounded-full transition-all ${
+                      idx === currentMediaIndex ? 'bg-brand-orange w-4' : 'bg-white/50 hover:bg-white'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Main Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        <div 
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 
+          onClick={onClose}
+        ></div>
+        
+        <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-fadeIn">
         {/* Close Button */}
         <button 
           onClick={onClose}
@@ -52,22 +115,32 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ property, onClose }) => {
 
         <div className="flex flex-col lg:flex-row h-full overflow-y-auto lg:overflow-hidden">
           {/* Media Carousel Section */}
-          <div className="lg:w-3/5 bg-black flex items-center justify-center relative min-h-[300px] lg:h-auto">
+          <div className="lg:w-3/5 bg-black flex items-center justify-center relative h-[40vh] lg:min-h-0 lg:max-h-none lg:h-auto flex-shrink-0">
             {mediaItems.length > 0 && (
               <>
-                <div className="w-full h-full flex items-center justify-center p-4">
+                <div className="w-full h-full flex items-center justify-center p-2 sm:p-4 relative">
                   {currentMedia.type === 'video' ? (
                     <video 
                       src={currentMedia.url} 
                       controls 
-                      className="max-w-full max-h-[60vh] rounded shadow-lg"
+                      className="w-full h-full max-w-full max-h-full object-contain rounded shadow-lg"
                     />
                   ) : (
-                    <img 
-                      src={currentMedia.url} 
-                      alt={`View ${currentMediaIndex + 1}`} 
-                      className="max-w-full max-h-[60vh] object-contain"
-                    />
+                    <>
+                      <img 
+                        src={currentMedia.url} 
+                        alt={`View ${currentMediaIndex + 1}`} 
+                        className="w-full h-full max-w-full max-h-full object-contain cursor-pointer lg:cursor-default"
+                        onClick={() => window.innerWidth < 1024 && setIsImageZoomed(true)}
+                      />
+                      {/* Zoom Icon - Mobile Only */}
+                      <button
+                        onClick={() => setIsImageZoomed(true)}
+                        className="lg:hidden absolute bottom-2 right-2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                      >
+                        <Maximize2 size={18} />
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -75,25 +148,25 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ property, onClose }) => {
                   <>
                     <button 
                       onClick={handlePrev}
-                      className="absolute left-4 p-2 bg-white/10 hover:bg-white/30 text-white rounded-full transition-colors"
+                      className="absolute left-2 sm:left-4 p-1.5 sm:p-2 bg-white/10 hover:bg-white/30 text-white rounded-full transition-colors"
                     >
-                      <ChevronLeft size={32} />
+                      <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8" />
                     </button>
                     <button 
                       onClick={handleNext}
-                      className="absolute right-4 p-2 bg-white/10 hover:bg-white/30 text-white rounded-full transition-colors"
+                      className="absolute right-2 sm:right-4 p-1.5 sm:p-2 bg-white/10 hover:bg-white/30 text-white rounded-full transition-colors"
                     >
-                      <ChevronRight size={32} />
+                      <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8" />
                     </button>
                     
                     {/* Dots Indicator */}
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    <div className="absolute bottom-2 sm:bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-1.5 sm:space-x-2">
                       {mediaItems.map((_, idx) => (
                         <button
                           key={idx}
                           onClick={() => setCurrentMediaIndex(idx)}
-                          className={`w-2 h-2 rounded-full transition-all ${
-                            idx === currentMediaIndex ? 'bg-brand-orange w-6' : 'bg-white/50 hover:bg-white'
+                          className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all ${
+                            idx === currentMediaIndex ? 'bg-brand-orange w-4 sm:w-6' : 'bg-white/50 hover:bg-white'
                           }`}
                         />
                       ))}
@@ -123,7 +196,7 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ property, onClose }) => {
             </div>
 
             <div className="text-3xl font-bold text-brand-orange mb-8">
-              {property.price}
+              {formatPrice(property.price)}
             </div>
 
             {/* Icons Grid */}
@@ -162,8 +235,9 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ property, onClose }) => {
             </Button>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

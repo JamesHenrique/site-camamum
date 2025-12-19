@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Property } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { logger } from '../lib/logger';
 
 interface PropertyContextType {
   properties: Property[];
   loading: boolean;
   addProperty: (property: Omit<Property, 'id'>) => Promise<void>;
+  updateProperty: (id: string, property: Omit<Property, 'id'>) => Promise<void>;
   deleteProperty: (id: string) => Promise<void>;
   refreshProperties: () => Promise<void>;
 }
@@ -25,7 +27,7 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching properties:', error);
+        logger.error('Error fetching properties:', error);
         return;
       }
 
@@ -48,7 +50,7 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
         setProperties(mappedProperties);
       }
     } catch (err) {
-      console.error('Unexpected error:', err);
+      logger.error('Unexpected error:', err);
     } finally {
       setLoading(false);
     }
@@ -75,15 +77,59 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
         video_urls: property.videoUrls
       };
 
-      const { error } = await supabase
-        .from('properties')
-        .insert([dbProperty]);
+      logger.log('Enviando para Supabase:', dbProperty);
 
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('properties')
+        .insert([dbProperty])
+        .select();
+
+      if (error) {
+        logger.error('Erro detalhado do Supabase:', error);
+        throw error;
+      }
       
+      logger.log('Propriedade inserida com sucesso:', data);
       await fetchProperties();
     } catch (error) {
-      console.error('Error adding property:', error);
+      logger.error('Error adding property:', error);
+      throw error;
+    }
+  };
+
+  const updateProperty = async (id: string, property: Omit<Property, 'id'>) => {
+    try {
+      const dbProperty = {
+        title: property.title,
+        type: property.type,
+        price: property.price,
+        address: property.address,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        area: property.area,
+        description: property.description,
+        image_url: property.imageUrl,
+        gallery_images: property.galleryImages,
+        video_urls: property.videoUrls
+      };
+
+      logger.log('Atualizando propriedade:', id, dbProperty);
+
+      const { data, error } = await supabase
+        .from('properties')
+        .update(dbProperty)
+        .eq('id', id)
+        .select();
+
+      if (error) {
+        logger.error('Erro detalhado do Supabase:', error);
+        throw error;
+      }
+      
+      logger.log('Propriedade atualizada com sucesso:', data);
+      await fetchProperties();
+    } catch (error) {
+      logger.error('Error updating property:', error);
       throw error;
     }
   };
@@ -100,13 +146,13 @@ export const PropertyProvider: React.FC<{ children: ReactNode }> = ({ children }
       // Optimistic update or refetch
       setProperties((prev) => prev.filter((p) => p.id !== id));
     } catch (error) {
-      console.error('Error deleting property:', error);
+      logger.error('Error deleting property:', error);
       throw error;
     }
   };
 
   return (
-    <PropertyContext.Provider value={{ properties, loading, addProperty, deleteProperty, refreshProperties: fetchProperties }}>
+    <PropertyContext.Provider value={{ properties, loading, addProperty, updateProperty, deleteProperty, refreshProperties: fetchProperties }}>
       {children}
     </PropertyContext.Provider>
   );

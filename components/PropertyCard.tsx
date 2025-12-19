@@ -2,6 +2,7 @@ import React from 'react';
 import { Bed, Bath, Move, MapPin, Images, PlayCircle } from 'lucide-react';
 import { Property } from '../types';
 import Button from './Button';
+import { formatPrice } from '../lib/formatters';
 
 interface PropertyCardProps {
   property: Property;
@@ -12,7 +13,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onDetailsClick })
   return (
     <div className="group bg-white rounded-lg shadow-sm hover:shadow-xl transition-shadow duration-300 border border-gray-100 overflow-hidden flex flex-col h-full">
       {/* Image Container */}
-      <div className="relative h-64 overflow-hidden">
+      <div className="relative h-48 sm:h-56 md:h-64 overflow-hidden">
         <img 
           src={property.imageUrl} 
           alt={property.title} 
@@ -76,7 +77,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onDetailsClick })
 
         <div className="mt-auto">
           <div className="text-xl font-bold text-brand-orange mb-4">
-            {property.price}
+            {formatPrice(property.price)}
           </div>
           <Button variant="outline" fullWidth onClick={onDetailsClick}>
             Saiba Mais

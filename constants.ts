@@ -1,6 +1,14 @@
 import { Property } from './types';
 
-export const WHATSAPP_NUMBER = "5511999999999"; // Replace with actual number
+// Carrega número WhatsApp de variável de ambiente
+const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER;
+if (!whatsappNumber) {
+  throw new Error('❌ VITE_WHATSAPP_NUMBER não está definido! Adicione ao arquivo .env');
+}
+export const WHATSAPP_NUMBER = whatsappNumber;
+
+// Placeholder image para imóveis sem foto
+export const PLACEHOLDER_IMAGE = 'https://placehold.co/800x600/e8e8e8/666666?text=Sem+Imagem';
 
 export const PROPERTIES: Property[] = [
   {

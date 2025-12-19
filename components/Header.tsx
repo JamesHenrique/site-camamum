@@ -1,18 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { Menu, X, MessageCircle, House } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Menu, X, MessageCircle } from 'lucide-react';
 import Button from './Button';
 import { WHATSAPP_NUMBER } from '../constants';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoWithBackground, setShowLogoWithBackground] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
+      const scrolled = window.scrollY > 5;
+      
+      // Clear any pending timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      if (scrolled) {
+        // Scrolling down: background first, then logo
+        setIsScrolled(true);
+        timeoutRef.current = setTimeout(() => setShowLogoWithBackground(true), 50);
+      } else {
+        // Scrolling up: logo first, then background
+        setShowLogoWithBackground(false);
+        timeoutRef.current = setTimeout(() => setIsScrolled(false), 50);
+      }
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
   const scrollToSection = (id: string) => {
@@ -35,20 +57,16 @@ const Header: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
-          {/* Logo - Black House Icon + Orange Text */}
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => scrollToSection('home')}>
-             <div className="relative">
-                <House size={32} className="text-black fill-current" strokeWidth={1.5} />
-                <div className="absolute top-1 left-1.5 w-2 h-2 bg-white rounded-sm"></div>
-             </div>
-            <div className="flex flex-col leading-none">
-                <span className="text-2xl font-bold tracking-tight text-brand-orange">
-                CAMAMUM
-                </span>
-                <span className={`text-[10px] tracking-widest font-semibold uppercase ${isScrolled ? 'text-gray-500' : 'text-gray-200'}`}>
-                    Administração de Bens
-                </span>
-            </div>
+          {/* Logo */}
+          <div 
+            className="cursor-pointer transition-opacity hover:opacity-80" 
+            onClick={() => scrollToSection('home')}
+          >
+            <img 
+              src={showLogoWithBackground ? "/img/banner-p-395x71.png" : "/img/banner-black.png"} 
+              alt="CAMAMUM - Administração de Bens" 
+              className="h-10 sm:h-12 w-auto transition-opacity duration-300"
+            />
           </div>
 
           {/* Desktop Navigation */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Button from './Button';
 import { ArrowLeft, House, Lock, Mail, AlertCircle } from 'lucide-react';
@@ -12,9 +12,54 @@ const Login: React.FC<LoginProps> = ({ onBack }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Rate limiting states
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const lastAttemptTime = useRef<number>(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockTimeRemaining, setLockTimeRemaining] = useState(0);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Verifica se está bloqueado
+    if (isLocked) {
+      setError(`Muitas tentativas falhas. Aguarde ${Math.ceil(lockTimeRemaining / 60)} minuto(s).`);
+      return;
+    }
+    
+    // Rate limiting: mínimo 2 segundos entre tentativas
+    const now = Date.now();
+    const timeSinceLastAttempt = now - lastAttemptTime.current;
+    
+    if (timeSinceLastAttempt < 2000 && lastAttemptTime.current > 0) {
+      setError('Aguarde alguns segundos antes de tentar novamente.');
+      return;
+    }
+    
+    // Bloqueia após 5 tentativas falhas
+    if (loginAttempts >= 5) {
+      setIsLocked(true);
+      setLockTimeRemaining(300); // 5 minutos em segundos
+      
+      // Countdown timer
+      const interval = setInterval(() => {
+        setLockTimeRemaining((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setIsLocked(false);
+            setLoginAttempts(0);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      setError('Muitas tentativas falhas. Conta bloqueada por 5 minutos.');
+      return;
+    }
+    
+    lastAttemptTime.current = now;
     setLoading(true);
     setError(null);
 
@@ -24,7 +69,14 @@ const Login: React.FC<LoginProps> = ({ onBack }) => {
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        setLoginAttempts(prev => prev + 1);
+        // Mensagem genérica para evitar enumeração de usuários
+        throw new Error('Credenciais inválidas. Verifique seu email e senha.');
+      }
+      
+      // Reset em caso de sucesso
+      setLoginAttempts(0);
       // Auth state change will be picked up by AuthContext automatically
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.');
@@ -99,14 +151,25 @@ const Login: React.FC<LoginProps> = ({ onBack }) => {
             <Button
               type="submit"
               fullWidth
-              disabled={loading}
-              className={`flex items-center justify-center gap-2 ${loading ? 'opacity-70 cursor-wait' : ''}`}
+              disabled={loading || isLocked}
+              className={`flex items-center justify-center gap-2 ${
+                loading || isLocked ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
             >
-              {loading ? 'Entrando...' : 'Entrar no Sistema'}
+              {loading 
+                ? 'Entrando...' 
+                : isLocked 
+                ? `Bloqueado (${Math.ceil(lockTimeRemaining / 60)}min)` 
+                : 'Entrar no Sistema'}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
+            {loginAttempts > 0 && loginAttempts < 5 && (
+              <p className="text-xs text-orange-600 mb-2">
+                ⚠️ Tentativa {loginAttempts} de 5. Mais {5 - loginAttempts} tentativa(s) antes do bloqueio.
+              </p>
+            )}
             <p className="text-xs text-gray-400">
               Esqueceu sua senha? Contate o suporte técnico.
             </p>
